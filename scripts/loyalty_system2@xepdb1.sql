@@ -47,3 +47,62 @@ begin
         
 end get_clients_with_more_1000_bonus;
 /
+
+-- ======================================================================================== 
+-- Penalty for inactive clients 
+-- ========================================================================================   
+
+create or replace procedure apply_inactivity_penalty
+as
+    v_penalty_amount  constant number := 10;
+    v_cutoff_date     date := sysdate - 45;
+    description     varchar2(4000);
+    
+    cursor c_penalty_clients
+    is
+    select c.id,
+           c.name,
+           coalesce(sum(p.bonus_earned), 0) -
+           coalesce(abs(sum(case when bt.bonus_change < 0 then
+                                    bt.bonus_change
+                                 else
+                                    0
+                            end)), 0) as current_bonus
+    from clients c
+    left outer join purchases p
+               on   c.id = p.client_id and p.purchase_date > v_cutoff_date
+    left outer join bonus_transactions bt
+               on   c.id = bt.client_id
+    where not exists (
+        select 1
+        from purchases p2
+        where p2.client_id = c.id
+        and p2.purchase_date > v_cutoff_date
+        )
+        group by c.id,
+                 c.name
+        having coalesce(sum(p.bonus_earned), 0) -
+               coalesce(abs(sum(case when bt.bonus_change < 0 then
+                                        bt.bonus_change
+                                     else
+                                        0
+                                end
+                        )), 0)
+                >= 10
+        ;
+begin
+    for r in c_penalty_clients loop
+        insert into bonus_transactions (
+            client_id,
+            transaction_date,
+            bonus_change,
+            description
+         ) values (
+            r.id,
+            sysdate,
+            -v_penalty_amount,
+            'Daily fine for being inactive for 45 days'
+        );
+    end loop;   
+end apply_inactivity_penalty;
+/
