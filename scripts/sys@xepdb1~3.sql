@@ -15,3 +15,5 @@ grant connect,
       create materialized view,
       create procedure,
       create sequence to loyalty_system;
+      
+drop table onus_transactions;
