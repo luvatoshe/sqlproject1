@@ -47,6 +47,17 @@ where total_bonus > 1000;
 select *
 from table(dbms_xplan.display(null, 'mv_request'));
 
+-- ========================================================================================
+-- Example of request
+-- ========================================================================================
+
+select client_id,
+       client_name,
+       to_char(total_bonus, 'FM999,999') as total_bonus
+from table(get_clients_with_more_1000_bonus(sysdate))
+where total_purchase_30d > 0
+order by client_id;
+
 
 
 
